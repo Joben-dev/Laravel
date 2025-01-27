@@ -1,12 +1,15 @@
 {
+  "version": 2,
   "builds": [
     {
-      "src": "api/index.php",
+      "src": "api/**/*",
       "use": "@vercel/php"
     }
   ],
-  "env": {
-    "APP_ENV": "production"
-  },
-  "installCommand": "composer install"
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/api/public/$1"
+    }
+  ]
 }

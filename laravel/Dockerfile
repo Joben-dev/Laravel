@@ -1,22 +1,42 @@
-FROM php:8.0-fpm
+# Use an official PHP image with Composer and Nginx installed
+FROM php:8.1-fpm
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y libpng-dev libjpeg-dev libfreetype6-dev zip git curl
+RUN apt-get update && apt-get install -y \
+    libpng-dev \
+    libjpeg-dev \
+    libfreetype6-dev \
+    libonig-dev \
+    libxml2-dev \
+    zip \
+    unzip \
+    curl \
+    nginx \
+    supervisor
+
+# Install PHP extensions
+RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
 
 # Install Composer
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+COPY --from=composer:2.5 /usr/bin/composer /usr/bin/composer
 
-# Set the working directory
-WORKDIR /var/www
+# Set working directory
+WORKDIR /var/www/html
 
-# Copy project files into the container
+# Copy application files
 COPY . .
 
-# Install PHP dependencies using Composer
-RUN composer install
+# Set permissions
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Expose port 80
+# Expose port 80 for Nginx
 EXPOSE 80
 
-# Command to run the app
-CMD ["php", "-S", "0.0.0.0:80", "-t", "api"]
+# Create a supervisor configuration file for PHP-FPM and Nginx
+RUN echo '[supervisord]\nnodaemon=true\n\n' \
+    '[program:php-fpm]\ncommand=/usr/local/sbin/php-fpm\n\n' \
+    '[program:nginx]\ncommand=/usr/sbin/nginx -g "daemon off;"\n\n' \
+    > /etc/supervisor/supervisord.conf
+
+# Start Supervisor (which runs PHP-FPM and Nginx)
+CMD ["supervisord", "-c", "/etc/supervisor/supervisord.conf"]
